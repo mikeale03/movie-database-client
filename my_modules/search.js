@@ -33,6 +33,9 @@ module.exports = class Search {
             case 'home':
                 cursor = db.find({}).sort({title:1});
                 break;
+            case 'latest':
+                cursor = db.find({}).sort({release_date:-1});
+                break;
             default:
                 cursor = db.find({$or:[{title:regex},{'cast.name':regex},{year:parseInt(input)},{genres:regex},{languages:regex},{'directors.name':regex}]}).sort({release_date:-1});
         }
@@ -40,26 +43,6 @@ module.exports = class Search {
         if(skip) cursor.skip(skip);
         if(limit) cursor.limit(limit);
         return cursor;
-    }
-    searchByYear(year,skip,limit,cb) {
-        let cursor = db.find({year:year}).sort({year:-1});
-        if(skip) cursor.skip(skip);
-        if(limit) cursor.limit(limit);
-        cursor.exec(cb);
-    }
-    searchByCast(cast,skip,limit,cb) {
-        let regex = new RegExp(`${cast}`,'i');
-        let cursor = db.find({'cast.name':regex}).sort({year:-1});
-        if(skip) cursor.skip(skip);
-        if(limit) cursor.limit(limit);
-        cursor.exec(cb);
-    }
-    searchByDirector(director,skip,limit,cb) {
-        let regex = new RegExp(`${director}`,'i');
-        let cursor = db.find({'director.name':regex}).sort({year:-1});
-        if(skip) cursor.skip(skip);
-        if(limit) cursor.limit(limit);
-        cursor.exec(cb);
     }
 } 
     

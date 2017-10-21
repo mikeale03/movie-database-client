@@ -24,21 +24,21 @@ let app = new Vue({
     movieData:{title:'',cast:[]},
     input:'',
     type:'all',
-    show:false
+    show:false,
+    movieIndex:null
   },
   methods: {
     fetchData: function (movie, index) {
       let vm = this;
-
+      vm.movieIndex = index;
       if (movie.isFetch) {
         vm.movieData = Object.assign({},movie);
-        console.log(movie);
+        
       } else {
 
         let selectedMovie = vm.movies[index];
         tmdb.searchMovie(movie)
         .then(function (response) {
-          console.log(response);
           if(response.data.results.length) {
             let data = response.data.results[0];
             data.isFetch = true;
@@ -74,7 +74,6 @@ let app = new Vue({
         })
 
         .then( (response) => {
-          //console.log(response);
           if(response) {
             response = response.data;
             let data = {
@@ -117,13 +116,13 @@ let app = new Vue({
     },
     find: function(input,type,skip,limit) {
       let vm = this;
+      vm.movieIndex = 0;
       let Search = require('./my_modules/search');
       let searcher = new Search(db);
       searcher.search(input,type,skip,limit).exec((err,docs) => {
         if(err) alert(err);
         else {
           vm.movies = docs;
-          console.log(docs);
           vm.movieData = vm.movies[0]||vm.movieData;
         }
       })
@@ -131,7 +130,6 @@ let app = new Vue({
 
     debounceFind: require('./my_modules/debounce') ( function() {
       this.find(this.input,this.type);
-      console.log(this.type);
     },500),
 
     displayTitle: (movie) =>  movie.year ? movie.title +" ("+movie.year+")" :movie.title,
@@ -154,28 +152,21 @@ let app = new Vue({
     },
     getLanguages: (movie) => movie.languages ? movie.languages.join(', ').split(' '):[],
 
-    showContextMenu: function(movie,index,e) {
-      let vm = this;
-      const menu = new Menu()
-      menu.append(new MenuItem({label: 'Edit', click(item) { 
-        console.log(movie);
-        ipcRenderer.send('showEditMovie',movie, index);
-      }}))
-      menu.append(new MenuItem({label: 'Delete', click() {
-        db.remove({_id:movie._id},{}, function(err, numRemoved) {
-          console.log("data removed: "+numRemoved);
-          vm.movies.splice(index,1);
-        });
-      }}))
-      menu.append(new MenuItem({label: 'Show in directory', click() {
-        shell.showItemInFolder('file:'+movie.path);
-      }}))
-      e.preventDefault();
-      menu.popup(remote.getCurrentWindow());
+    keyEvent: function(event) {
+      if(event.keyCode === 40 && this.movieIndex < (this.movies.length-1)) {
+        this.movieIndex++;
+        this.movieData = Object.assign({},this.movies[this.movieIndex]);
+      } else if(event.keyCode === 38 && this.movieIndex > 0) {
+        this.movieIndex--;
+        this.movieData = Object.assign({},this.movies[this.movieIndex]);
+      }
     },
-    
+
+    openUrl: (url) => {
+      shell.openExternal(url);
+    },
+
     play:(movie) => {
-      console.log(movie.path);
       //shell.openItem('file:'+movie.path) || alert('File error!');
       const { exec } = require('child_process');
       exec('cd release & WindowsFormsApp1.exe "'+movie.path+'"', (error, stdout, stderr) => {
@@ -198,51 +189,15 @@ let app = new Vue({
       if(data[0]) {
         vm.movies = data;
         vm.movieData = data[0];
+        vm.index = 0;
       }
-    /*db.find({}, function(err, data) {
-      vm.movies = data;
-      vm.movieData = data[0];
-      vm.movieData.src = `${imageApiUrl}w500${data[0].backdrop_path}`;
-    });*/
+    
     });
   },
   mounted: function() {
     this.show = true;
   }
 })
-
-/*function updateDoc(err,numReplaced,doc) {
-    let vm = this;
-    vm.movieData = doc;
-    vm.movies[vm.index] = doc;
-    vm.movieData.src = `${imageApiUrl}/w500${doc.backdrop_path}`;
-    tmdb.getMovieDetails(doc.id)
-    .then(function (response) {
-      console.log(response);
-      response = response.data;
-      
-      let data = {
-        genres:response.genres,
-        imdb_id:response.imdb_id,
-        cast:getCast(response.credits.cast,10).map(function(val) {
-          val.profile_path = val.profile_path ? imageApiUrl+'w92'+val.profile_path:'images/noImage.png';
-          return val;
-        }),
-        directors:getDirectors(response.credits.crew)
-      }
-      db.update({_id:vm.movies[vm.index]._id},{ $set: data },{returnUpdatedDocs: true}, function(err, numReplaced, doc) {
-        if(err) console.log(err)
-        else {
-          //this.movieData = doc;
-          selectedMovie = doc;
-          console.log(doc);
-        }
-      })
-    })
-    .catch(function (error) {
-      console.log(error);
-    });
-}*/
 
 function addMoreInfo(err, numReplaced, doc) {
     if(err) console.log(err)
